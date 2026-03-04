@@ -13,7 +13,7 @@ erDiagram
     string id PK
     string firstName
     string lastName
-    string email UNIQUE
+    string email UK
     string mobileNumber
     datetime createdAt
     datetime updatedAt
