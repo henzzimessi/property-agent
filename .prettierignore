@@ -1,0 +1,11 @@
+node_modules/
+backend/dist/
+web/dist/
+web/test-results/
+web/playwright-report/
+web/.playwright/
+test-results/
+playwright-report/
+.playwright/
+web/.vite/
+coverage/
