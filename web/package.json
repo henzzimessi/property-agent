@@ -14,13 +14,17 @@
     "format": "prettier --write ."
   },
   "dependencies": {
-    "vue": "^3.5.13"
+    "pinia": "^2.3.0",
+    "vue": "^3.5.13",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.1",
     "@vue/test-utils": "^2.4.6",
     "@playwright/test": "^1.49.1",
     "@vue/eslint-config-prettier": "^10.0.0",
+    "@typescript-eslint/parser": "^8.23.0",
+    "typescript": "^5.7.3",
     "jsdom": "^25.0.1",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^9.1.0",

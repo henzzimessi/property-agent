@@ -1,5 +1,6 @@
 const vue = require("eslint-plugin-vue");
 const vueParser = require("vue-eslint-parser");
+const tsParser = require("@typescript-eslint/parser");
 const prettier = require("eslint-config-prettier");
 
 module.exports = [
@@ -8,12 +9,14 @@ module.exports = [
   },
   ...vue.configs["flat/recommended"],
   {
-    files: ["**/*.{js,vue}"],
+    files: ["**/*.{js,ts,vue}"],
     languageOptions: {
       parser: vueParser,
       parserOptions: {
         ecmaVersion: "latest",
         sourceType: "module",
+        parser: tsParser,
+        extraFileExtensions: [".vue"],
       },
     },
     rules: {

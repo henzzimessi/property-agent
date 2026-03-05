@@ -2,7 +2,7 @@ import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { agentStore } from "../store/agents.js";
 import type { Agent } from "../types.js";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 
 const agentSchema = z.object({
   firstName: z.string().min(1),
@@ -29,6 +29,13 @@ function buildAgent(id: string, data: z.infer<typeof agentSchema>): Agent {
   };
 }
 
+function sendValidationError(reply: FastifyReply, error: z.ZodError) {
+  return reply.status(400).send({
+    error: "Validation failed",
+    details: error.flatten(),
+  });
+}
+
 export async function registerAgentRoutes(app: FastifyInstance) {
   app.get("/agents", async () => {
     return agentStore.list();
@@ -45,10 +52,7 @@ export async function registerAgentRoutes(app: FastifyInstance) {
   app.post<{ Body: z.infer<typeof agentSchema> }>("/agents", async (request, reply) => {
     const parsed = agentSchema.safeParse(request.body);
     if (!parsed.success) {
-      return reply.status(400).send({
-        error: "Validation failed",
-        details: parsed.error.flatten(),
-      });
+      return sendValidationError(reply, parsed.error);
     }
     if (agentStore.existsByEmail(parsed.data.email)) {
       return reply.status(409).send({ error: "Email already exists" });
@@ -64,10 +68,7 @@ export async function registerAgentRoutes(app: FastifyInstance) {
     async (request, reply) => {
       const parsed = agentUpdateSchema.safeParse(request.body);
       if (!parsed.success) {
-        return reply.status(400).send({
-          error: "Validation failed",
-          details: parsed.error.flatten(),
-        });
+        return sendValidationError(reply, parsed.error);
       }
 
       if (parsed.data.email && agentStore.existsByEmail(parsed.data.email, request.params.id)) {

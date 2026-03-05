@@ -9,7 +9,7 @@ Full stack solution for the L3 Senior Full Stack Engineer take‑home.
 - `docs/erd.md` — relational data model (ERD)
 - `docs/postman_collection.json` — Postman collection
 - `backend/` — Fastify + TypeScript REST API
-- `web/` — Vue 3 + Vite client
+- `web/` — Vue 3 + Vite client (TypeScript + Pinia + Zod validation)
 
 ## Run
 
@@ -32,6 +32,13 @@ npm run dev
 ```
 
 UI: `http://localhost:3000`
+
+## Frontend highlights
+
+- TypeScript-based Vue app
+- Global state with Pinia
+- Real-time form validation (Zod)
+- Decomposed components and dashboard UI
 
 ## Tests
 

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
+import { createPinia, setActivePinia } from "pinia";
 import App from "./App.vue";
 
 function mockFetchSequence(responses) {
@@ -31,7 +32,13 @@ describe("App", () => {
       },
     ]);
 
-    const wrapper = mount(App);
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    const wrapper = mount(App, {
+      global: {
+        plugins: [pinia],
+      },
+    });
     await flushPromises();
 
     expect(wrapper.text()).toContain("Alex Rivera");
@@ -55,14 +62,20 @@ describe("App", () => {
       { ok: true, json: async () => [createdAgent] },
     ]);
 
-    const wrapper = mount(App);
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    const wrapper = mount(App, {
+      global: {
+        plugins: [pinia],
+      },
+    });
     await flushPromises();
 
     await wrapper.get('[data-testid="first-name"]').setValue("Jamie");
     await wrapper.get('[data-testid="last-name"]').setValue("Lee");
     await wrapper.get('[data-testid="email"]').setValue("jamie@purehr.com");
     await wrapper.get('[data-testid="mobile-number"]').setValue("555-777-8888");
-    await wrapper.get('[data-testid="agent-form"]').trigger("submit");
+    await wrapper.get('[data-testid="submit-agent"]').trigger("click");
 
     await flushPromises();
 

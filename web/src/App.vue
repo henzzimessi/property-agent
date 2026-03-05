@@ -1,215 +1,180 @@
 <template>
   <div class="container">
-    <div class="header">
-      <div>
-        <h1>Property Agents</h1>
-        <p class="badge">PURE Home River – Take‑Home</p>
+    <section class="hero card">
+      <div class="hero-header">
+        <div>
+          <h1>Property Agents</h1>
+          <p class="hero-subtitle">
+            Manage your regional roster with confidence — create, update, and track
+            agent performance in one place.
+          </p>
+          <StatusBadge>PURE Home River – Take‑Home</StatusBadge>
+        </div>
+        <div class="hero-actions">
+          <button class="secondary" type="button" @click="refreshAgents">
+            Refresh list
+          </button>
+          <button class="secondary" data-testid="clear-form" type="button" @click="resetForm">
+            Clear form
+          </button>
+        </div>
       </div>
-      <button class="secondary" data-testid="clear-form" @click="resetForm">Clear form</button>
-    </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <p class="stat-label">Total agents</p>
+          <p class="stat-value">{{ totalAgents }}</p>
+          <p class="stat-note">{{ filteredCount }} visible with current filters</p>
+        </div>
+        <div class="stat-card">
+          <p class="stat-label">Recently updated</p>
+          <p class="stat-value">{{ recentlyUpdated }}</p>
+          <p class="stat-note">Past 7 days · Latest {{ latestUpdate }}</p>
+        </div>
+        <div class="stat-card">
+          <p class="stat-label">Mobile coverage</p>
+          <p class="stat-value">{{ withMobile }}</p>
+          <p class="stat-note">Agents with phone numbers on file</p>
+        </div>
+      </div>
+    </section>
 
     <div class="grid two">
-      <section class="card">
-        <h2>{{ isEditing ? "Update Agent" : "Create Agent" }}</h2>
-        <form class="grid" data-testid="agent-form" @submit.prevent="handleSubmit">
-          <div>
-            <label for="firstName">First name</label>
-            <input
-              id="firstName"
-              v-model="form.firstName"
-              placeholder="Alex"
-              data-testid="first-name"
-            />
-          </div>
-          <div>
-            <label for="lastName">Last name</label>
-            <input
-              id="lastName"
-              v-model="form.lastName"
-              placeholder="Rivera"
-              data-testid="last-name"
-            />
-          </div>
-          <div>
-            <label for="email">Email</label>
-            <input
-              id="email"
-              v-model="form.email"
-              placeholder="alex@purehr.com"
-              data-testid="email"
-            />
-          </div>
-          <div>
-            <label for="mobile">Mobile number</label>
-            <input
-              id="mobile"
-              v-model="form.mobileNumber"
-              placeholder="(555) 123‑4567"
-              data-testid="mobile-number"
-            />
-          </div>
-          <div class="actions">
-            <button class="primary" type="submit" data-testid="submit-agent">
-              {{ isEditing ? "Save changes" : "Create agent" }}
-            </button>
-            <button
-              v-if="isEditing"
-              class="secondary"
-              data-testid="cancel-edit"
-              type="button"
-              @click="resetForm"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-        <div v-if="notice" class="notice" data-testid="notice">{{ notice }}</div>
-      </section>
+      <AgentForm
+        ref="formRef"
+        :initial-values="initialValues"
+        :is-editing="isEditing"
+        :notice="notice"
+        @submit="handleSubmit"
+        @cancel="resetForm"
+      />
 
-      <section class="card">
-        <h2>Agents</h2>
-        <div v-if="loading" data-testid="loading">Loading agents...</div>
-        <div v-else-if="agents.length === 0" data-testid="empty">No agents yet.</div>
-        <div v-else class="table-wrap" data-testid="agents-table">
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Mobile</th>
-                <th>Updated</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="agent in agents" :key="agent.id" :data-testid="`agent-row-${agent.id}`">
-                <td>{{ agent.firstName }} {{ agent.lastName }}</td>
-                <td>{{ agent.email }}</td>
-                <td>{{ agent.mobileNumber }}</td>
-                <td>{{ formatDate(agent.updatedAt) }}</td>
-                <td>
-                  <div class="actions">
-                    <button
-                      class="secondary"
-                      :data-testid="`edit-${agent.id}`"
-                      @click="editAgent(agent)"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      class="danger"
-                      :data-testid="`delete-${agent.id}`"
-                      @click="removeAgent(agent.id)"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <AgentList :agents="agents" :loading="loading" @edit="editAgent" @delete="removeAgent">
+        <template #filters>
+          <AgentFilters v-model="searchTerm" />
+        </template>
+      </AgentList>
+    </div>
+
+    <div v-if="storeError" class="notice" data-testid="notice-error">
+      {{ storeError }}
     </div>
   </div>
 </template>
 
-<script setup>
-import { onMounted, reactive, ref } from "vue";
+<script setup lang="ts">
+import { computed, onMounted, ref } from "vue";
+import { storeToRefs } from "pinia";
+import AgentForm from "./components/AgentForm.vue";
+import AgentList from "./components/AgentList.vue";
+import AgentFilters from "./components/AgentFilters.vue";
+import StatusBadge from "./components/StatusBadge.vue";
+import { useAgentsStore } from "./stores/agents";
+import type { Agent, AgentPayload } from "./types/agents";
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:3001";
+const store = useAgentsStore();
+const { filteredAgents, loading, error, searchTerm: storeSearchTerm } = storeToRefs(store);
 
-const agents = ref([]);
-const loading = ref(false);
+const formRef = ref<InstanceType<typeof AgentForm> | null>(null);
 const notice = ref("");
 const isEditing = ref(false);
-const editingId = ref(null);
+const editingId = ref<string | null>(null);
 
-const form = reactive({
+const emptyValues: AgentPayload = {
   firstName: "",
   lastName: "",
   email: "",
   mobileNumber: "",
+};
+
+const editingAgent = computed(() =>
+  store.agents.find((agent) => agent.id === editingId.value) ?? null,
+);
+
+const initialValues = computed<AgentPayload>(() => {
+  if (isEditing.value && editingAgent.value) {
+    const agent = editingAgent.value;
+    return {
+      firstName: agent.firstName,
+      lastName: agent.lastName,
+      email: agent.email,
+      mobileNumber: agent.mobileNumber,
+    };
+  }
+  return { ...emptyValues };
 });
 
-function resetForm() {
-  form.firstName = "";
-  form.lastName = "";
-  form.email = "";
-  form.mobileNumber = "";
+const agents = computed(() => filteredAgents.value);
+const storeError = computed(() => error.value);
+const totalAgents = computed(() => store.agents.length);
+const filteredCount = computed(() => agents.value.length);
+const withMobile = computed(
+  () => store.agents.filter((agent) => agent.mobileNumber.trim().length > 0).length,
+);
+const recentlyUpdated = computed(() => {
+  const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  return store.agents.filter((agent) => {
+    const timestamp = new Date(agent.updatedAt).getTime();
+    return !Number.isNaN(timestamp) && timestamp >= cutoff;
+  }).length;
+});
+const latestUpdate = computed(() => {
+  const timestamps = store.agents
+    .map((agent) => new Date(agent.updatedAt).getTime())
+    .filter((value) => !Number.isNaN(value));
+  if (timestamps.length === 0) return "—";
+  return new Date(Math.max(...timestamps)).toLocaleDateString();
+});
+
+const searchTerm = computed({
+  get: () => storeSearchTerm.value,
+  set: (value: string) => store.setSearchTerm(value),
+});
+
+const resetForm = () => {
   isEditing.value = false;
   editingId.value = null;
   notice.value = "";
-}
+  formRef.value?.resetForm();
+};
 
-function formatDate(value) {
-  if (!value) return "—";
-  return new Date(value).toLocaleString();
-}
+const refreshAgents = () => {
+  store.fetchAgents();
+};
 
-async function fetchAgents() {
-  loading.value = true;
-  try {
-    const response = await fetch(`${API_BASE}/agents`);
-    agents.value = await response.json();
-  } catch (error) {
-    notice.value = "Failed to load agents.";
-  } finally {
-    loading.value = false;
-  }
-}
-
-async function handleSubmit() {
+const handleSubmit = async (payload: AgentPayload) => {
   notice.value = "";
-  const payload = { ...form };
 
-  try {
-    const response = await fetch(
-      isEditing.value ? `${API_BASE}/agents/${editingId.value}` : `${API_BASE}/agents`,
-      {
-        method: isEditing.value ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      },
-    );
+  const result = isEditing.value && editingId.value
+    ? await store.updateAgent(editingId.value, payload)
+    : await store.createAgent(payload);
 
-    if (!response.ok) {
-      const data = await response.json();
-      notice.value = data?.error ?? "Request failed.";
-      return;
-    }
-
-    await fetchAgents();
-    resetForm();
-  } catch (error) {
-    notice.value = "Request failed.";
+  if (!result.ok) {
+    notice.value = result.error;
+    return;
   }
-}
 
-function editAgent(agent) {
-  form.firstName = agent.firstName;
-  form.lastName = agent.lastName;
-  form.email = agent.email;
-  form.mobileNumber = agent.mobileNumber;
+  notice.value = isEditing.value ? "Agent updated." : "Agent created.";
+  isEditing.value = false;
+  editingId.value = null;
+  formRef.value?.resetForm();
+};
+
+const editAgent = (agent: Agent) => {
   isEditing.value = true;
   editingId.value = agent.id;
   notice.value = "Editing agent. Save changes when ready.";
-}
+};
 
-async function removeAgent(id) {
+const removeAgent = async (id: string) => {
   notice.value = "";
-  try {
-    const response = await fetch(`${API_BASE}/agents/${id}`, { method: "DELETE" });
-    if (!response.ok) {
-      const data = await response.json();
-      notice.value = data?.error ?? "Delete failed.";
-      return;
-    }
-    await fetchAgents();
-  } catch (error) {
-    notice.value = "Delete failed.";
+  const result = await store.deleteAgent(id);
+  if (!result.ok) {
+    notice.value = result.error;
   }
-}
+};
 
-onMounted(fetchAgents);
+onMounted(() => {
+  store.fetchAgents();
+});
 </script>
